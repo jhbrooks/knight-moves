@@ -23,13 +23,11 @@ class Board
   end
 
   def move(a, b)
-    puts
     puts "Trying to move from #{a.inspect} to #{b.inspect}.".center(line_width)
-    relevant_pieces = pieces.select { |piece| piece.pos == a }
-    if relevant_pieces.empty?
+    if pieces_at(a).empty?
       puts "No piece to move in #{a.inspect}.".center(line_width)
     else
-      chosen_piece = relevant_pieces.last
+      chosen_piece = pieces_at(a).last
 
       if valid_moves(chosen_piece).include?(b)
         chosen_piece.pos = b
@@ -40,8 +38,13 @@ class Board
              "is an invalid move.".center(line_width)
       end
     end
+    puts
 
     display
+  end
+
+  def pieces_at(pos)
+    pieces.select { |piece| piece.pos == pos }
   end
 
   def valid_moves(piece)
@@ -60,9 +63,23 @@ class Board
     pieces.none? { |piece| piece.pos == move }
   end
 
+  def knight_moves(a, b)
+    new_ps = self.pieces.map { |piece| piece } << Knight.new(a)
+    moves = Node.new(nil, Board.new(new_ps)).knight_moves_bfs(a, b)
+    if moves.empty?
+      puts "A knight can't get from #{a.inspect} to #{b.inspect} right now!"
+      puts
+    else
+      puts "You can get from #{a.inspect} to #{b.inspect} "\
+           "in #{moves.length - 1} moves!"
+      moves.each { |move| p move }
+      puts
+    end
+  end
+
   def display
-    puts
     puts display_string
+    puts
   end
 
   private
@@ -148,54 +165,58 @@ end
 
 # This class handles searching for knight moves
 class Node
+  attr_reader :board
+
   def initialize(parent, board)
     @parent = parent
     @board = board
   end
 
-  def knight_moves_bfs(targ, queue = [self])
-    if board.pieces.first.pos == targ
-      return [board.pieces.first.pos] if parent.nil?
-      parent.build_path([board.pieces.first.pos])
+  def knight_moves_bfs(a, b, searched = [], queue = [self])
+    if board.pieces_at(a).last.pos == b
+      return [board.pieces_at(a).last.pos] if parent.nil?
+      parent.build_path([board.pieces_at(a).last.pos])
     else
+      searched << (board.pieces_at(a).last.pos)
       queue.shift
 
-      board.valid_moves(board.pieces.first).each do |move|
-        queue.push(Node.new(self, Board.new([Knight.new(move)])))
+      board.valid_moves(board.pieces_at(a).last).each do |move|
+        unless searched.include?(move)
+          new_ps = board.pieces - [board.pieces_at(a).last] << Knight.new(move)
+          queue.push(Node.new(self, Board.new(new_ps)))
+        end
       end
 
-      queue.first.knight_moves_bfs(targ, queue)
+      return [] if queue.empty?
+
+      new_a = queue.first.board.pieces.last.pos
+      queue.first.knight_moves_bfs(new_a, b, searched, queue)
     end
   end
 
   def build_path(path)
-    path.unshift(board.pieces.first.pos)
+    path.unshift(board.pieces.last.pos)
     return path if parent.nil?
     parent.build_path(path)
   end
 
   private
 
-  attr_reader :parent, :board
-end
-
-def knight_moves(a, b)
-  moves = Node.new(nil, Board.new([Knight.new(a)])).knight_moves_bfs(b)
-  puts "You can get from #{a.inspect} to #{b.inspect} "\
-       "in #{moves.length - 1} moves!"
-  moves.each { |move| p move }
-  puts
+  attr_reader :parent
 end
 
 board = Board.new([Knight.new([4, 4]), Knight.new([3, 7])])
-puts board.display
+puts
+board.display
 board.move([4, 4], [2, 5])
 board.move([4, 4], [2, 5])
 board.move([2, 5], [4, 3])
 board.move([2, 5], [3, 7])
 board.move([3, 7], [5, 8])
 board.move([2, 5], [4, 4])
-puts
-knight_moves([0, 1], [4, 3])
-knight_moves([7, 7], [2, 3])
-knight_moves([3, 3], [3, 3])
+
+km_board = Board.new([Knight.new([1, 2]), Knight.new([2, 1])])
+km_board.knight_moves([0, 0], [4, 3])
+km_board.move([1, 2], [3, 3])
+board.knight_moves([0, 0], [4, 3])
+board.knight_moves([7, 7], [2, 1])
