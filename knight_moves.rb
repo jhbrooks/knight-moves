@@ -15,21 +15,49 @@ class Board
       end
     end
 
-    @pieces = pieces
+    @pieces = pieces.select do |piece|
+      piece.pos.all? do |coord|
+        coord >= 0 && coord < dim
+      end
+    end
   end
 
-  def move(piece)
-    piece.pos = valid_moves(piece)[rand(valid_moves(piece).length)]
-    piece.moves = piece.find_moves
+  def move(a, b)
+    puts
+    puts "Trying to move from #{a.inspect} to #{b.inspect}.".center(line_width)
+    relevant_pieces = pieces.select { |piece| piece.pos == a }
+    if relevant_pieces.empty?
+      puts "No piece to move in #{a.inspect}.".center(line_width)
+    else
+      chosen_piece = relevant_pieces.last
+
+      if valid_moves(chosen_piece).include?(b)
+        chosen_piece.pos = b
+        chosen_piece.moves = chosen_piece.find_moves
+        puts "Moved from #{a.inspect} to #{b.inspect}.".center(line_width)
+      else
+        puts "#{a.inspect} to #{b.inspect} "\
+             "is an invalid move.".center(line_width)
+      end
+    end
+
     display
   end
 
   def valid_moves(piece)
     piece.moves.select do |move|
-      move.all? do |coord|
-        coord >= 0 && coord < dim
-      end
+      on_board?(move) && unoccupied?(move)
     end
+  end
+
+  def on_board?(move)
+    move.all? do |coord|
+      coord >= 0 && coord < dim
+    end
+  end
+
+  def unoccupied?(move)
+    pieces.none? { |piece| piece.pos == move }
   end
 
   def display
@@ -37,36 +65,60 @@ class Board
     puts display_string
   end
 
-  def display_string
-    display_rows = rows.map do |row|
-      row.map do |square|
-        square
-      end
-    end
-
-    pieces.each do |piece|
-      display_rows[piece.pos[0]][piece.pos[1]] = piece
-    end
-
-    display_rows.map do |row|
-      row.map do |square|
-        if square.is_a?(Knight)
-          square.mark
-        else
-          if square.even?
-            "  "
-          else
-            "@@"
-          end
-        end
-      end.join("").center(line_width)
-    end.join("\n")
-  end
-
   private
 
   attr_reader :dim, :line_width
   attr_accessor :rows
+
+  def display_string
+    rows_with_pieces = copy_rows
+    pieces.each do |piece|
+      rows_with_pieces[piece.pos[0]][piece.pos[1]] = piece
+    end
+
+    rows_with_pieces.map do |row|
+      row_string_with_label(row)
+    end.unshift(top_label_string).join("\n")
+  end
+
+  def copy_rows
+    rows.map do |row|
+      row.map do |square|
+        square
+      end
+    end
+  end
+
+  def row_string_with_label(row)
+    adjustment = (line_width / 2) + (row_string(row).length / 2)
+    "#{row.first} #{row_string(row)}".rjust(adjustment)
+  end
+
+  def row_string(row)
+    row.map do |square|
+      square_string(square)
+    end.join("")
+  end
+
+  def square_string(square)
+    if square.is_a?(Knight)
+      square.mark
+    else
+      if square.even?
+        "  "
+      else
+        "@@"
+      end
+    end
+  end
+
+  def top_label_string
+    top_label_array = []
+    dim.times do |n|
+      top_label_array << "#{n} "
+    end
+    top_label_array.join("").center(line_width)
+  end
 end
 
 # This class describes the knight piece
@@ -84,7 +136,7 @@ class Knight
   end
 
   def find_moves
-    @move_patterns.map do |pattern|
+    move_patterns.map do |pattern|
       [pos[0] + pattern[0], pos[1] + pattern[1]]
     end
   end
@@ -129,17 +181,20 @@ end
 
 def knight_moves(a, b)
   moves = Node.new(nil, Board.new([Knight.new(a)])).knight_moves_bfs(b)
-  puts "You made it in #{moves.length - 1} moves!"
+  puts "You can get from #{a.inspect} to #{b.inspect} "\
+       "in #{moves.length - 1} moves!"
   moves.each { |move| p move }
   puts
 end
 
-board = Board.new([Knight.new([4, 4])])
+board = Board.new([Knight.new([4, 4]), Knight.new([3, 7])])
 puts board.display
-board.move(board.pieces.first)
-board.move(board.pieces.first)
-board.move(board.pieces.first)
-board.move(board.pieces.first)
+board.move([4, 4], [2, 5])
+board.move([4, 4], [2, 5])
+board.move([2, 5], [4, 3])
+board.move([2, 5], [3, 7])
+board.move([3, 7], [5, 8])
+board.move([2, 5], [4, 4])
 puts
 knight_moves([0, 1], [4, 3])
 knight_moves([7, 7], [2, 3])
