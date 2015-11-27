@@ -24,6 +24,14 @@ class Board
     display
   end
 
+  def valid_moves(piece)
+    piece.moves.select do |move|
+      move.all? do |coord|
+        coord >= 0 && coord < dim
+      end
+    end
+  end
+
   def display
     puts
     puts display_string
@@ -59,14 +67,6 @@ class Board
 
   attr_reader :dim, :line_width
   attr_accessor :rows
-
-  def valid_moves(piece)
-    piece.moves.select do |move|
-      move.all? do |coord|
-        coord >= 0 && coord < dim
-      end
-    end
-  end
 end
 
 # This class describes the knight piece
@@ -94,9 +94,53 @@ class Knight
   attr_reader :move_patterns
 end
 
+# This class handles searching for knight moves
+class Node
+  def initialize(parent, board)
+    @parent = parent
+    @board = board
+  end
+
+  def knight_moves_bfs(targ, queue = [self])
+    if board.pieces.first.pos == targ
+      return [board.pieces.first.pos] if parent.nil?
+      parent.build_path([board.pieces.first.pos])
+    else
+      queue.shift
+
+      board.valid_moves(board.pieces.first).each do |move|
+        queue.push(Node.new(self, Board.new([Knight.new(move)])))
+      end
+
+      queue.first.knight_moves_bfs(targ, queue)
+    end
+  end
+
+  def build_path(path)
+    path.unshift(board.pieces.first.pos)
+    return path if parent.nil?
+    parent.build_path(path)
+  end
+
+  private
+
+  attr_reader :parent, :board
+end
+
+def knight_moves(a, b)
+  moves = Node.new(nil, Board.new([Knight.new(a)])).knight_moves_bfs(b)
+  puts "You made it in #{moves.length - 1} moves!"
+  moves.each { |move| p move }
+  puts
+end
+
 board = Board.new([Knight.new([4, 4])])
 puts board.display
 board.move(board.pieces.first)
 board.move(board.pieces.first)
 board.move(board.pieces.first)
 board.move(board.pieces.first)
+puts
+knight_moves([0, 1], [4, 3])
+knight_moves([7, 7], [2, 3])
+knight_moves([3, 3], [3, 3])
