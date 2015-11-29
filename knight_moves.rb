@@ -10,15 +10,11 @@ class Board
     @rows = []
     dim.times do |row_n|
       rows << []
-      dim.times do |col_n|
-        rows[-1] << (row_n + col_n)
-      end
+      dim.times { |col_n| rows[-1] << (row_n + col_n) }
     end
 
     @pieces = pieces.select do |piece|
-      piece.pos.all? do |coord|
-        coord >= 0 && coord < dim
-      end
+      on_board?(piece.pos)
     end
   end
 
@@ -48,15 +44,11 @@ class Board
   end
 
   def valid_moves(piece)
-    piece.moves.select do |move|
-      on_board?(move) && unoccupied?(move)
-    end
+    piece.moves.select { |move| on_board?(move) && unoccupied?(move) }
   end
 
   def on_board?(move)
-    move.all? do |coord|
-      coord >= 0 && coord < dim
-    end
+    move.all? { |coord| coord >= 0 && coord < dim }
   end
 
   def unoccupied?(move)
@@ -64,16 +56,19 @@ class Board
   end
 
   def knight_moves(a, b)
-    new_ps = self.pieces.map { |piece| piece } << Knight.new(a)
-    moves = Node.new(nil, Board.new(new_ps)).knight_moves_bfs(a, b)
-    if moves.empty?
-      puts "A knight can't get from #{a.inspect} to #{b.inspect} right now!"
-      puts
+    if !on_board?(a)
+      puts "#{a.inspect} is not on the board!\n"
     else
-      puts "You can get from #{a.inspect} to #{b.inspect} "\
-           "in #{moves.length - 1} moves!"
-      moves.each { |move| p move }
-      puts
+      new_ps = pieces.map { |piece| piece } << Knight.new(a)
+      moves = Node.new(nil, Board.new(new_ps)).knight_moves_bfs(b)
+      if moves.empty?
+        puts "A knight can't get from #{a.inspect} to #{b.inspect}!\n"
+      else
+        puts "You can get from #{a.inspect} to #{b.inspect} "\
+             "in #{moves.length - 1} moves!"
+        moves.each { |move| p move }
+        puts
+      end
     end
   end
 
@@ -100,9 +95,7 @@ class Board
 
   def copy_rows
     rows.map do |row|
-      row.map do |square|
-        square
-      end
+      row.map { |square| square }
     end
   end
 
@@ -112,29 +105,19 @@ class Board
   end
 
   def row_string(row)
-    row.map do |square|
-      square_string(square)
-    end.join("")
+    row.map { |square| square_string(square) }.join("")
   end
 
   def square_string(square)
-    if square.is_a?(Knight)
-      square.mark
-    else
-      if square.even?
-        "  "
-      else
-        "@@"
-      end
-    end
+    return square.mark if square.is_a?(Knight)
+    return "  " if square.even?
+    "@@"
   end
 
   def top_label_string
-    top_label_array = []
-    dim.times do |n|
-      top_label_array << "#{n} "
-    end
-    top_label_array.join("").center(line_width)
+    top_labels = []
+    dim.times { |n| top_labels << "#{n} " }
+    top_labels.join("").center(line_width)
   end
 end
 
@@ -172,25 +155,24 @@ class Node
     @board = board
   end
 
-  def knight_moves_bfs(a, b, searched = [], queue = [self])
-    if board.pieces_at(a).last.pos == b
-      return [board.pieces_at(a).last.pos] if parent.nil?
-      parent.build_path([board.pieces_at(a).last.pos])
+  def knight_moves_bfs(targ, searched = [], queue = [self])
+    if board.pieces.last.pos == targ
+      return [board.pieces.last.pos] if parent.nil?
+      parent.build_path([board.pieces.last.pos])
     else
-      searched << (board.pieces_at(a).last.pos)
+      searched << (board.pieces.last.pos)
       queue.shift
 
-      board.valid_moves(board.pieces_at(a).last).each do |move|
+      board.valid_moves(board.pieces.last).each do |move|
         unless searched.include?(move)
-          new_ps = board.pieces - [board.pieces_at(a).last] << Knight.new(move)
+          new_ps = board.pieces - [board.pieces.last] << Knight.new(move)
           queue.push(Node.new(self, Board.new(new_ps)))
         end
       end
 
       return [] if queue.empty?
 
-      new_a = queue.first.board.pieces.last.pos
-      queue.first.knight_moves_bfs(new_a, b, searched, queue)
+      queue.first.knight_moves_bfs(targ, searched, queue)
     end
   end
 
@@ -205,7 +187,13 @@ class Node
   attr_reader :parent
 end
 
+bad_board = Board.new([Knight.new([8, 8])])
+puts "Testing #initialize with improper Knight..."
+puts
+bad_board.display
+
 board = Board.new([Knight.new([4, 4]), Knight.new([3, 7])])
+puts "Testing #move..."
 puts
 board.display
 board.move([4, 4], [2, 5])
@@ -216,6 +204,10 @@ board.move([3, 7], [5, 8])
 board.move([2, 5], [4, 4])
 
 km_board = Board.new([Knight.new([1, 2]), Knight.new([2, 1])])
+puts "Testing #knight_moves..."
+puts
+km_board.display
+km_board.knight_moves([8, 8], [4, 3])
 km_board.knight_moves([0, 0], [4, 3])
 km_board.move([1, 2], [3, 3])
 board.knight_moves([0, 0], [4, 3])
